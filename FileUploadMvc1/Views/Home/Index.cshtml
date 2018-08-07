@@ -1,0 +1,105 @@
+﻿@{
+    ViewBag.Title = "Home Page";
+}
+
+<h3>
+    With this solution you can upload any blob without any size limitation.
+</h3>
+
+<div class="row">
+
+    <div class="modal-body">
+        <div class="form-group">
+            <div class="input-group">
+                <label class="input-group-btn">
+                    <span class="btn btn-primary">
+                        Browse… <input type="file" class="selectfile" style="display: none;" />
+                    </span>
+                </label>
+                <input type="text" class="form-control selectedfile" />
+            </div>
+        </div>
+        <div class="form-group">
+            Uploading...
+            <div class="progress">
+                <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0%;">
+                    0%
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-body">
+        <div class="form-group">
+            <div class="input-group">
+                <label class="input-group-btn">
+                    <span class="btn btn-primary">
+                        Browse… <input type="file" class="selectfile" style="display: none;" />
+                    </span>
+                </label>
+                <input type="text" class="form-control selectedfile" />
+            </div>
+        </div>
+        <div class="form-group">
+            Uploading...
+            <div class="progress">
+                <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0%;">
+                    0%
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+@section scripts{
+    <script src="~/scripts/azure-storage.blob.min.js"></script>
+    <script type="text/javascript">
+        $(document).on('change', ':file', function () {
+            $(this).closest('div.modal-body').find('input.selectedfile').val($(this).val().replace(/\\/g, '/').replace(/.*\//, ''));
+            uploadBlob($(this).closest('div.modal-body'));
+        });
+
+        function uploadBlob(obj) {
+            displayProcess(0);
+
+            var blobUri = 'https://storagename.blob.core.windows.net'
+            var sasToken = 'sv=2017-11-09&ss=bfqt&srt=sco&sp=rwdlacup&se=2018-08-09T18:32:26Z&st=2018-08-07T10:32:26Z&spr=https&sig=cxPtY7px9ByIu0F%2F99%2FDifIE5PrVxADtR8W85LY3tMM%3D'; // your app will generate it
+            var container = 'uploads';
+
+            var blobService = AzureStorage.Blob.createBlobServiceWithSas(blobUri, sasToken);
+
+            var file = obj.find('input.selectfile')[0].files[0];
+
+            var customBlockSize = file.size > 1024 * 1024 * 32 ? 1024 * 1024 * 4 : 1024 * 512;
+            blobService.singleBlobPutThresholdInBytes = customBlockSize;
+
+            var finishedOrError = false;
+            var speedSummary = blobService.createBlockBlobFromBrowserFile(container, file.name, file, { blockSize: customBlockSize }, function (error, result, response) {
+                finishedOrError = true;
+                if (error) {
+                    alert('Error');
+                } else {
+                    displayProcess(100);
+                }
+            });
+
+            function refreshProgress() {
+                setTimeout(function () {
+                    if (!finishedOrError) {
+                        var process = speedSummary.getCompletePercent();
+                        displayProcess(process);
+                        refreshProgress();
+                    }
+                }, 200);
+            }
+
+            function displayProcess(process) {
+                obj.find('div.progress-bar').css('width', process + '%');
+                obj.find('div.progress-bar').html(process + '%');
+            }
+
+            refreshProgress();
+        }
+    </script>
+}
